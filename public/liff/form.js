@@ -1,5 +1,4 @@
-const params = new URLSearchParams(location.search);
-const eventId = params.get('event_id');
+let eventId = new URLSearchParams(location.search).get('event_id');
 
 let participant = null;
 let segments = [];
@@ -178,25 +177,19 @@ async function submitForm() {
 // ── LIFF 初期化 ─────────────────────────────────────────────────────────────
 
 async function init() {
-  document.getElementById('loading-msg').textContent = 'JS起動 / eventId=' + eventId;
-  if (!eventId) { showError('URL に event_id が含まれていません'); return; }
-
-  document.getElementById('loading-msg').textContent = 'config取得中…';
   const config = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
-  document.getElementById('loading-msg').textContent = 'liffId=' + (config.liffId || 'なし');
   if (!config.liffId) { showError('LIFF の設定が見つかりません'); return; }
 
   try {
-    await Promise.race([
-      liff.init({ liffId: config.liffId }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`init timeout — liffId: ${config.liffId} / url: ${location.href}`)), 8000)
-      ),
-    ]);
+    await liff.init({ liffId: config.liffId });
   } catch (e) {
     showError(`LIFF 初期化エラー: ${e.message}`);
     return;
   }
+
+  // liff.init() 完了後に liff.state が展開され URL が復元されるので、ここで再取得
+  eventId = new URLSearchParams(location.search).get('event_id');
+  if (!eventId) { showError('URL に event_id が含まれていません'); return; }
 
   if (!liff.isLoggedIn()) {
     liff.login({ redirectUri: location.href });
