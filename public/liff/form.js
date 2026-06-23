@@ -181,9 +181,14 @@ async function init() {
   if (!config.liffId) { showError('LIFF の設定が見つかりません'); return; }
 
   try {
-    await liff.init({ liffId: config.liffId });
+    await Promise.race([
+      liff.init({ liffId: config.liffId }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout / liffId=' + config.liffId)), 6000)
+      ),
+    ]);
   } catch (e) {
-    showError(`LIFF 初期化エラー: ${e.message}`);
+    showError(`LIFF エラー: ${e.message}`);
     return;
   }
 
