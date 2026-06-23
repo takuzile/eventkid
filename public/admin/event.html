@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventKit</title>
+  <style>
+    :root {
+      --green: #06C755; --green-dk: #05a847;
+      --red: #FF3B30;
+      --bg: #F5F5F5; --white: #fff;
+      --text: #1A1A1A; --sub: #888;
+      --border: #E8E8E8; --radius: 12px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+           background: var(--bg); color: var(--text); font-size: 15px; }
+    .topbar { background: var(--white); border-bottom: 1px solid var(--border);
+              display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem;
+              position: sticky; top: 0; z-index: 10; }
+    .back-btn { background: none; border: none; font-size: 20px; cursor: pointer;
+                color: var(--green); padding: 0 .25rem; line-height: 1; }
+    .topbar-title { font-size: 16px; font-weight: 700; flex: 1; white-space: nowrap;
+                    overflow: hidden; text-overflow: ellipsis; }
+    .page { max-width: 640px; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+
+    /* card */
+    .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .card-header { padding: .85rem 1.1rem; border-bottom: 1px solid var(--border);
+                   font-size: 13px; font-weight: 700; color: var(--sub); letter-spacing: .04em; text-transform: uppercase; }
+    .card-body { padding: 1rem 1.1rem; }
+    .card-row { padding: .75rem 1.1rem; border-top: 1px solid var(--border);
+                display: flex; align-items: center; gap: .75rem; }
+
+    /* btn */
+    .btn { display: inline-flex; align-items: center; justify-content: center;
+           padding: .5rem 1rem; border-radius: 999px; border: none;
+           cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .15s; }
+    .btn:hover { opacity: .82; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-ghost { background: #F0F0F0; color: var(--text); }
+    .btn-danger { background: #FEE2E2; color: var(--red); }
+    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-block { width: 100%; padding: .85rem; border-radius: 12px; font-size: 15px; font-weight: 700; }
+    .btn-icon { background: none; border: none; cursor: pointer; color: var(--sub); font-size: 18px; padding: .2rem; }
+
+    /* badge */
+    .badge { display: inline-block; padding: .2rem .65rem; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge-draft  { background: #F0F0F0; color: var(--sub); }
+    .badge-open   { background: #DCFCE7; color: #166534; }
+    .badge-closed { background: #FEE2E2; color: #991B1B; }
+
+    /* stats */
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .stat { text-align: center; padding: 1rem .5rem; border-right: 1px solid var(--border); }
+    .stat:last-child { border: none; }
+    .stat-num { font-size: 26px; font-weight: 800; }
+    .stat-lbl { font-size: 11px; color: var(--sub); margin-top: .15rem; }
+
+    /* LIFF url */
+    .url-row { display: flex; gap: .5rem; align-items: center; }
+    .url-input { flex: 1; font-size: 12px; color: var(--sub); background: #F8F8F8;
+                 border: 1.5px solid var(--border); border-radius: 8px;
+                 padding: .5rem .75rem; white-space: nowrap; overflow: hidden;
+                 text-overflow: ellipsis; cursor: text; }
+
+    /* status row */
+    .status-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+    /* list item */
+    .list-item { display: flex; align-items: center; gap: .75rem;
+                 padding: .8rem 1.1rem; border-top: 1px solid var(--border); }
+    .list-item:first-child { border-top: none; }
+    .list-item-main { flex: 1; min-width: 0; }
+    .list-item-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .list-item-sub { font-size: 12px; color: var(--sub); margin-top: .1rem; }
+    .list-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+    /* participant */
+    .p-responded { color: #166534; font-size: 12px; }
+    .p-pending   { color: var(--sub); font-size: 12px; }
+
+    /* form fields */
+    .field { margin-bottom: .9rem; }
+    .field label { display: block; font-size: 12px; color: var(--sub); margin-bottom: .3rem; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: .7rem .9rem; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 15px; background: var(--white);
+      appearance: none; transition: border-color .15s; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--green); }
+    .field textarea { resize: none; }
+    .field-row { display: flex; gap: .75rem; }
+    .field-row .field { flex: 1; }
+    .check-row { display: flex; align-items: center; gap: .6rem; padding: .4rem 0; font-size: 14px; }
+    .check-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+
+    /* empty */
+    .empty-msg { padding: 1.5rem 1rem; color: var(--sub); font-size: 14px; text-align: center; }
+
+    /* modal */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100;
+               display: flex; align-items: flex-end; justify-content: center;
+               opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .sheet { background: var(--white); border-radius: 20px 20px 0 0; width: 100%;
+             max-width: 640px; padding: 1.25rem 1.25rem 2rem;
+             transform: translateY(100%); transition: transform .25s; max-height: 92dvh; overflow-y: auto; }
+    .overlay.open .sheet { transform: translateY(0); }
+    .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; margin: 0 auto .75rem; }
+    .sheet-title { font-size: 17px; font-weight: 700; margin-bottom: 1.1rem; }
+    .sheet-footer { display: flex; gap: .75rem; margin-top: 1rem; }
+    .sheet-footer .btn { flex: 1; padding: .8rem; border-radius: 12px; font-size: 15px; }
+
+    /* options for select/multiselect */
+    #q-options-row { display: none; }
+
+    /* section add btn */
+    .section-add { padding: .8rem 1.1rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-btn" onclick="location.href='/admin/'">←</button>
+  <span class="topbar-title" id="topbar-title">読み込み中…</span>
+  <span id="topbar-badge"></span>
+</div>
+
+<div class="page">
+
+  <!-- イベント説明 -->
+  <div class="card">
+    <div class="card-body">
+      <div id="event-desc" style="color:var(--sub);font-size:14px;margin-bottom:.75rem"></div>
+      <div class="status-row" id="status-row">
+        <button class="btn btn-ghost" onclick="changeStatus('draft')">下書き</button>
+        <button class="btn btn-ghost" onclick="changeStatus('open')">受付開始</button>
+        <button class="btn btn-ghost" onclick="changeStatus('closed')">締め切る</button>
+        <button class="btn btn-danger" onclick="openEditSheet()">編集</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIFF URL -->
+  <div class="card">
+    <div class="card-header">LIFF URL（参加者に共有）</div>
+    <div class="card-body">
+      <div class="url-row">
+        <div class="url-input" id="liff-url-display"></div>
+        <button class="btn btn-green" onclick="copyLiffUrl()">コピー</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 統計 -->
+  <div class="card">
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num" id="stat-total">-</div><div class="stat-lbl">参加者</div></div>
+      <div class="stat"><div class="stat-num" id="stat-responded">-</div><div class="stat-lbl">回答済み</div></div>
+      <div class="stat"><div class="stat-num" id="stat-unresponded">-</div><div class="stat-lbl">未回答</div></div>
+    </div>
+  </div>
+
+  <!-- 区間 -->
+  <div class="card">
+    <div class="card-header">区間</div>
+    <div id="seg-list"></div>
+    <div class="section-add">
+      <button class="btn btn-ghost" onclick="openSegSheet()">＋ 区間を追加</button>
+    </div>
+  </div>
+
+  <!-- 質問 -->
+  <div class="card">
+    <div class="card-header">カスタム質問</div>
+    <div id="q-list"></div>
+    <div class="section-add">
+      <button class="btn btn-ghost" onclick="openQSheet()">＋ 質問を追加</button>
+    </div>
+  </div>
+
+  <!-- 参加者 -->
+  <div class="card">
+    <div class="card-header">参加者</div>
+    <div id="p-list"></div>
+  </div>
+
+  <!-- グループ通知 -->
+  <div class="card">
+    <div class="card-header">グループ通知</div>
+    <div class="card-body">
+      <div class="field">
+        <label>LINE グループ ID</label>
+        <input id="group-id-input" placeholder="C1234abc...">
+      </div>
+      <button class="btn btn-green btn-block" onclick="sendNotify()">未回答者に通知を送る</button>
+    </div>
+  </div>
+
+  <div style="padding-bottom:2rem"></div>
+</div>
+
+<!-- イベント編集シート -->
+<div class="overlay" id="edit-overlay" onclick="onOverlay(event,'edit-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">イベント編集</div>
+    <form id="edit-form" onsubmit="submitEdit(event)">
+      <div class="field"><label>イベント名</label><input name="name" required></div>
+      <div class="field"><label>説明</label><textarea name="description" rows="3"></textarea></div>
+      <div class="sheet-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeOverlay('edit-overlay')">キャンセル</button>
+        <button type="submit" class="btn btn-green">保存</button>
+      </div>
+    </form>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <button class="btn btn-danger btn-block" onclick="deleteEvent()">このイベントを削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 区間シート -->
+<div class="overlay" id="seg-overlay" onclick="onOverlay(event,'seg-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="seg-sheet-title">区間を追加</div>
+    <form id="seg-form" onsubmit="submitSeg(event)">
+      <input type="hidden" name="segId">
+      <div class="field"><label>区間名</label><input name="name" required placeholder="例: 1日目"></div>
+      <div class="field-row">
+        <div class="field"><label>開始日時</label><input name="starts_at" type="datetime-local"></div>
+        <div class="field"><label>終了日時</label><input name="ends_at" type="datetime-local"></div>
+      </div>
+      <div class="field"><label>並び順</label><input name="sort_order" type="number" value="0"></div>
+      <div class="sheet-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeOverlay('seg-overlay')">キャンセル</button>
+        <button type="submit" class="btn btn-green">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 質問シート -->
+<div class="overlay" id="q-overlay" onclick="onOverlay(event,'q-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="q-sheet-title">質問を追加</div>
+    <form id="q-form" onsubmit="submitQ(event)">
+      <input type="hidden" name="qId">
+      <div class="field"><label>質問ラベル</label><input name="label" required placeholder="例: 出発地の最寄り駅"></div>
+      <div class="field">
+        <label>入力タイプ</label>
+        <select name="field_type" onchange="onFtChange(this.value)" required>
+          <option value="text">テキスト</option>
+          <option value="select">選択（単一）</option>
+          <option value="multiselect">選択（複数）</option>
+          <option value="number">数値</option>
+          <option value="bool">はい / いいえ</option>
+          <option value="date">日付</option>
+        </select>
+      </div>
+      <div class="field" id="q-options-row">
+        <label>選択肢（1行に1つ）</label>
+        <textarea name="options" rows="4" placeholder="選択肢A&#10;選択肢B&#10;選択肢C"></textarea>
+      </div>
+      <div class="field">
+        <label>意味タグ（任意）</label>
+        <select name="semantic">
+          <option value="">なし</option>
+          <option value="location">location（出発地など）</option>
+          <option value="capacity">capacity（定員など）</option>
+          <option value="money">money（金額など）</option>
+        </select>
+      </div>
+      <div class="check-row"><input type="checkbox" name="required" id="q-required"><label for="q-required">必須回答</label></div>
+      <div class="field"><label>並び順</label><input name="sort_order" type="number" value="0"></div>
+      <div class="sheet-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeOverlay('q-overlay')">キャンセル</button>
+        <button type="submit" class="btn btn-green">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="event.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventKit</title>
+  <style>
+    :root {
+      --green: #06C755; --green-dk: #05a847;
+      --red: #FF3B30;
+      --bg: #F5F5F5; --white: #fff;
+      --text: #1A1A1A; --sub: #888;
+      --border: #E8E8E8; --radius: 12px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+           background: var(--bg); color: var(--text); font-size: 15px; min-height: 100dvh; }
+
+    /* topbar */
+    .topbar { background: var(--white); border-bottom: 1px solid var(--border);
+              display: flex; align-items: center; justify-content: space-between;
+              padding: .75rem 1rem; position: sticky; top: 0; z-index: 10; }
+    .topbar-title { font-size: 17px; font-weight: 700; }
+
+    /* btn */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem;
+           padding: .55rem 1.1rem; border-radius: 999px; border: none; cursor: pointer;
+           font-size: 14px; font-weight: 600; transition: opacity .15s; }
+    .btn:hover { opacity: .82; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-sm { padding: .3rem .75rem; font-size: 13px; }
+
+    /* badges */
+    .badge { display: inline-block; padding: .15rem .55rem; border-radius: 999px;
+             font-size: 12px; font-weight: 600; }
+    .badge-draft  { background: #F0F0F0; color: var(--sub); }
+    .badge-open   { background: #DCFCE7; color: #166534; }
+    .badge-closed { background: #FEE2E2; color: #991B1B; }
+
+    /* page */
+    .page { max-width: 640px; margin: 0 auto; padding: 1rem; }
+
+    /* event card */
+    .event-card { background: var(--white); border-radius: var(--radius);
+                  box-shadow: var(--shadow); padding: 1rem 1.1rem;
+                  margin-bottom: .75rem; cursor: pointer;
+                  border: 1.5px solid transparent; transition: border-color .15s; }
+    .event-card:hover { border-color: var(--green); }
+    .event-card-name { font-size: 16px; font-weight: 700; margin: .35rem 0 .2rem; }
+    .event-card-desc { font-size: 13px; color: var(--sub); margin-bottom: .5rem;
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-card-meta { font-size: 12px; color: var(--sub); display: flex; gap: 1rem; }
+
+    /* login */
+    .login-wrap { display: flex; flex-direction: column; align-items: center;
+                  justify-content: center; min-height: 80dvh; gap: 1rem; padding: 2rem; text-align: center; }
+    .login-wrap h1 { font-size: 28px; font-weight: 800; }
+    .login-wrap p { color: var(--sub); }
+    .login-line-btn { background: var(--green); color: #fff; border: none;
+                      padding: .85rem 2rem; border-radius: 999px; font-size: 16px;
+                      font-weight: 700; cursor: pointer; margin-top: .5rem; text-decoration: none; }
+
+    /* user chip */
+    .user-chip { font-size: 13px; color: var(--sub); display: flex; align-items: center; gap: .5rem; }
+    .user-chip button { background: none; border: 1.5px solid var(--border); border-radius: 999px;
+                        padding: .25rem .65rem; font-size: 12px; cursor: pointer; color: var(--sub); }
+
+    /* fab */
+    .fab-wrap { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+
+    /* modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                     display: flex; align-items: flex-end; justify-content: center;
+                     z-index: 100; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--white); border-radius: 20px 20px 0 0; width: 100%; max-width: 640px;
+             padding: 1.5rem 1.25rem 2rem; transform: translateY(100%); transition: transform .25s; }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px;
+                    margin: 0 auto 1.25rem; }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 1.25rem; }
+
+    /* form */
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 13px; color: var(--sub); margin-bottom: .35rem; }
+    .field input, .field textarea {
+      width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 15px; background: var(--white);
+      transition: border-color .15s; }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--green); }
+    .field textarea { resize: none; }
+    .toggle-row { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; }
+    .toggle-row span { font-size: 14px; }
+    .toggle { width: 44px; height: 26px; background: var(--border); border-radius: 999px;
+              cursor: pointer; position: relative; transition: background .2s; border: none; }
+    .toggle::after { content: ''; position: absolute; width: 20px; height: 20px;
+                     background: #fff; border-radius: 50%; top: 3px; left: 3px;
+                     transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+    .toggle.on { background: var(--green); }
+    .toggle.on::after { transform: translateX(18px); }
+
+    .modal-footer { display: flex; gap: .75rem; margin-top: 1.25rem; }
+    .modal-footer .btn { flex: 1; padding: .8rem; border-radius: 12px; font-size: 15px; }
+    .btn-block-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+
+    #empty-msg { text-align: center; color: var(--sub); padding: 3rem 1rem; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<div id="login-view" hidden>
+  <div class="login-wrap">
+    <div style="font-size:48px">📅</div>
+    <h1>EventKit</h1>
+    <p>グループイベントの出欠・情報収集</p>
+    <a class="login-line-btn" href="/auth/line">LINE でログイン</a>
+  </div>
+</div>
+
+<div id="app-view" hidden>
+  <div class="topbar">
+    <span class="topbar-title">EventKit</span>
+    <div class="user-chip">
+      <span id="user-name"></span>
+      <button id="logout-btn">ログアウト</button>
+    </div>
+  </div>
+  <div class="page">
+    <div class="fab-wrap" style="margin-top:.25rem">
+      <button class="btn btn-green" onclick="openCreate()">＋ 新規作成</button>
+    </div>
+    <div id="event-list"></div>
+    <div id="empty-msg" hidden>まだイベントがありません</div>
+  </div>
+</div>
+
+<!-- 作成モーダル -->
+<div class="modal-overlay" id="create-overlay" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">新規イベント作成</div>
+    <form id="create-form" onsubmit="submitCreate(event)">
+      <div class="field">
+        <label>イベント名</label>
+        <input name="name" required placeholder="例: 6月の飲み会">
+      </div>
+      <div class="field">
+        <label>説明（任意）</label>
+        <textarea name="description" rows="3" placeholder="場所・持ち物など"></textarea>
+      </div>
+      <div class="toggle-row">
+        <button type="button" class="toggle" id="seg-toggle" onclick="this.classList.toggle('on')"></button>
+        <span>区間モード（複数の日程を設定）</span>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-block-outline" onclick="closeCreate()">キャンセル</button>
+        <button type="submit" class="btn btn-green">作成</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="index.js"></script>
+</body>
+</html>

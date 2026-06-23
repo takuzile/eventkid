@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>回答フォーム</title>
+  <style>
+    :root {
+      --green: #06C755; --red: #FF3B30;
+      --bg: #F5F5F5; --white: #fff;
+      --text: #1A1A1A; --sub: #888;
+      --border: #E8E8E8; --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+           background: var(--bg); color: var(--text); font-size: 15px;
+           min-height: 100dvh; }
+
+    /* states */
+    #loading, #error-view, #closed-view, #done-view {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100dvh; padding: 2rem; text-align: center; gap: 1rem; }
+    .state-icon { font-size: 52px; }
+    .state-title { font-size: 20px; font-weight: 700; }
+    .state-sub { color: var(--sub); font-size: 14px; }
+    .loading-spinner { width: 36px; height: 36px; border: 3px solid var(--border);
+                       border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* form */
+    #form-view { padding-bottom: 6rem; }
+    .event-header { background: var(--white); padding: 1.1rem 1rem .9rem; border-bottom: 1px solid var(--border); }
+    .event-header h2 { font-size: 18px; font-weight: 800; }
+    .event-header p { color: var(--sub); font-size: 13px; margin-top: .25rem; }
+
+    .section { background: var(--white); margin: .75rem 0; }
+    .section-title { padding: .75rem 1rem .5rem; font-size: 12px; font-weight: 700;
+                     color: var(--sub); letter-spacing: .05em; text-transform: uppercase; }
+
+    /* 出欠トグル */
+    .att-card { padding: .75rem 1rem 1rem; }
+    .att-label { font-size: 15px; font-weight: 600; margin-bottom: .65rem; }
+    .att-label small { font-size: 12px; color: var(--sub); font-weight: 400; margin-left: .4rem; }
+    .att-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .att-btn { padding: .9rem; border-radius: 10px; border: 2px solid var(--border);
+               background: var(--white); font-size: 16px; font-weight: 700;
+               cursor: pointer; transition: all .15s; color: var(--sub); }
+    .att-btn.yes { border-color: var(--green); background: #DCFCE7; color: #166534; }
+    .att-btn.no  { border-color: var(--red);   background: #FEE2E2; color: #991B1B; }
+
+    /* questions */
+    .q-item { padding: .75rem 1rem; border-top: 1px solid var(--border); }
+    .q-item:first-child { border-top: none; }
+    .q-label { font-size: 14px; font-weight: 600; margin-bottom: .5rem; }
+    .q-label .req { color: var(--red); margin-left: 2px; }
+    .q-input { width: 100%; padding: .7rem .9rem; border: 1.5px solid var(--border);
+               border-radius: 10px; font-size: 15px; background: var(--white);
+               appearance: none; transition: border-color .15s; }
+    .q-input:focus { outline: none; border-color: var(--green); }
+    .q-select-wrap { position: relative; }
+    .q-select-wrap::after { content: '▾'; position: absolute; right: .9rem; top: 50%;
+                            transform: translateY(-50%); pointer-events: none; color: var(--sub); }
+    /* multiselect checkboxes */
+    .multi-opts { display: flex; flex-direction: column; gap: .4rem; }
+    .multi-opt { display: flex; align-items: center; gap: .65rem; padding: .5rem .75rem;
+                 border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; }
+    .multi-opt input { width: 18px; height: 18px; accent-color: var(--green); }
+    /* bool */
+    .bool-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .bool-btn { padding: .7rem; border-radius: 10px; border: 1.5px solid var(--border);
+                background: var(--white); font-size: 14px; font-weight: 600;
+                cursor: pointer; color: var(--sub); transition: all .15s; }
+    .bool-btn.active { border-color: var(--green); background: #DCFCE7; color: #166534; }
+
+    /* submit */
+    .submit-bar { position: fixed; bottom: 0; left: 0; right: 0;
+                  background: var(--white); border-top: 1px solid var(--border);
+                  padding: .85rem 1rem calc(.85rem + env(safe-area-inset-bottom)); }
+    .submit-btn { width: 100%; padding: .95rem; border-radius: 12px; border: none;
+                  background: var(--green); color: #fff; font-size: 16px; font-weight: 800;
+                  cursor: pointer; transition: opacity .15s; }
+    .submit-btn:disabled { opacity: .5; }
+
+    /* done */
+    .done-check { width: 72px; height: 72px; background: #DCFCE7; border-radius: 50%;
+                  display: flex; align-items: center; justify-content: center;
+                  font-size: 36px; }
+  </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+<div id="loading"><div class="loading-spinner"></div><div class="state-sub">読み込み中…</div></div>
+<div id="error-view" hidden><div class="state-icon">⚠️</div><div class="state-title">エラー</div><div class="state-sub" id="error-text"></div></div>
+<div id="closed-view" hidden><div class="state-icon">🔒</div><div class="state-title">受付終了</div><div class="state-sub" id="closed-text"></div></div>
+
+<div id="form-view" hidden>
+  <div class="event-header">
+    <h2 id="ev-name"></h2>
+    <p id="ev-desc"></p>
+  </div>
+
+  <div class="section" id="att-section">
+    <div class="section-title">出欠</div>
+  </div>
+
+  <div class="section" id="q-section" hidden>
+    <div class="section-title">追加の質問</div>
+  </div>
+
+  <div class="submit-bar">
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">回答を送信</button>
+  </div>
+</div>
+
+<div id="done-view" hidden>
+  <div class="done-check">✓</div>
+  <div class="state-title">回答を受け付けました</div>
+  <div class="state-sub" id="done-text"></div>
+  <div class="state-sub">このページは閉じて構いません</div>
+</div>
+
+<script src="form.js"></script>
+</body>
+</html>
