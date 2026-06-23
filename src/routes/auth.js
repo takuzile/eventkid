@@ -6,10 +6,16 @@ const router = Router();
 
 // GET /auth/line — LINE Login へリダイレクト
 // LINE Developers Console に http://localhost:3000/auth/line/callback を登録必須
+function baseUrl(req) {
+  if (process.env.BASE_URL) return process.env.BASE_URL;
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${proto}://${req.get('host')}`;
+}
+
 router.get('/line', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   req.session.oauthState = state;
-  const redirectUri = `${req.protocol}://${req.get('host')}/auth/line/callback`;
+  const redirectUri = `${baseUrl(req)}/auth/line/callback`;
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.LINE_CHANNEL_ID,
@@ -29,7 +35,7 @@ router.get('/line/callback', async (req, res) => {
     }
     delete req.session.oauthState;
 
-    const redirectUri = `${req.protocol}://${req.get('host')}/auth/line/callback`;
+    const redirectUri = `${baseUrl(req)}/auth/line/callback`;
 
     const tokenRes = await axios.post(
       'https://api.line.me/oauth2/v2.1/token',
