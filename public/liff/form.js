@@ -178,9 +178,12 @@ async function submitForm() {
 // ── LIFF 初期化 ─────────────────────────────────────────────────────────────
 
 async function init() {
+  document.getElementById('loading-msg').textContent = 'JS起動 / eventId=' + eventId;
   if (!eventId) { showError('URL に event_id が含まれていません'); return; }
 
+  document.getElementById('loading-msg').textContent = 'config取得中…';
   const config = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+  document.getElementById('loading-msg').textContent = 'liffId=' + (config.liffId || 'なし');
   if (!config.liffId) { showError('LIFF の設定が見つかりません'); return; }
 
   try {
